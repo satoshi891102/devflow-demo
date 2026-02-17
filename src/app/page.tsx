@@ -116,6 +116,7 @@ function Nav() {
           <a href="#flow" className="hover:text-[#fafafa] transition-colors">Flow</a>
           <a href="#architecture" className="hover:text-[#fafafa] transition-colors">Architecture</a>
           <a href="#demo" className="hover:text-[#fafafa] transition-colors">Demo</a>
+          <a href="/scenarios" className="hover:text-[#fafafa] transition-colors">Scenarios</a>
         </div>
         <a
           href="https://gitlab.devpost.com/"
