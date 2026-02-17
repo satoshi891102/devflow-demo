@@ -68,10 +68,18 @@ body {
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), 0 0 60px rgba(99, 102, 241, 0.05);
 }
 
-.glow-sentinel { box-shadow: 0 0 20px rgba(249, 115, 22, 0.15); }
-.glow-triage { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15); }
-.glow-reviewer { box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
-.glow-scribe { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); }
+/* Agent-specific styles (explicit for Tailwind JIT) */
+.agent-sentinel { --agent-color: #f97316; }
+.agent-triage { --agent-color: #06b6d4; }
+.agent-reviewer { --agent-color: #a855f7; }
+.agent-scribe { --agent-color: #22c55e; }
+
+.agent-bg { background-color: color-mix(in srgb, var(--agent-color) 10%, transparent); }
+.agent-bg-active { background-color: color-mix(in srgb, var(--agent-color) 15%, transparent); }
+.agent-border { border-color: color-mix(in srgb, var(--agent-color) 20%, transparent); }
+.agent-border-active { border-color: color-mix(in srgb, var(--agent-color) 30%, transparent); }
+.agent-text { color: var(--agent-color); }
+.agent-glow { box-shadow: 0 0 20px color-mix(in srgb, var(--agent-color) 15%, transparent); }
 
 /* Animated gradient border */
 @keyframes gradient-shift {
@@ -105,7 +113,6 @@ body {
 }
 
 .float { animation: float 6s ease-in-out infinite; }
-.float-delayed { animation: float 6s ease-in-out 2s infinite; }
 
 /* Grid background */
 .grid-bg {
@@ -126,9 +133,3 @@ body {
   line-height: 1.7;
   overflow-x: auto;
 }
-
-.code-keyword { color: #c084fc; }
-.code-string { color: #6ee7b7; }
-.code-comment { color: #71717a; }
-.code-function { color: #60a5fa; }
-.code-type { color: #fbbf24; }
