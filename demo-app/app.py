@@ -1,13 +1,31 @@
-"""TaskFlow — Simple task management API for DevFlow demo."""
+"""TaskFlow — Task management API for DevFlow demo.
+
+This application contains INTENTIONAL vulnerabilities and issues
+for DevFlow agents to detect, fix, and document.
+
+Issues included:
+- SQL injection vulnerability (for Sentinel to fix)
+- Hardcoded secret key (for security scan detection)
+- Missing input validation (for Reviewer to catch)
+- Missing error handling (for Reviewer to flag)
+- Inconsistent patterns (for Reviewer to note)
+- Missing documentation (for Scribe to generate)
+"""
 
 import sqlite3
+import os
+import hashlib
+from datetime import datetime
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# INTENTIONAL VULNERABILITY: Hardcoded secret (for Sentinel to detect)
+# INTENTIONAL VULNERABILITY: Hardcoded secret (for security scan to detect)
 SECRET_KEY = "super_secret_key_12345"
 DATABASE = "tasks.db"
+
+# INTENTIONAL: Debug mode left on
+DEBUG_MODE = True
 
 
 def get_db():
@@ -27,6 +45,17 @@ def init_db():
             description TEXT,
             status TEXT DEFAULT 'pending',
             priority TEXT DEFAULT 'medium',
+            assignee TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT,
+            password_hash TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -34,11 +63,35 @@ def init_db():
     conn.close()
 
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Health check endpoint."""
+    return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
+
+
 @app.route("/tasks", methods=["GET"])
 def list_tasks():
-    """List all tasks."""
+    """List all tasks with optional filtering."""
+    status_filter = request.args.get("status")
+    priority_filter = request.args.get("priority")
+    
     conn = get_db()
-    tasks = conn.execute("SELECT * FROM tasks ORDER BY created_at DESC").fetchall()
+    query = "SELECT * FROM tasks"
+    conditions = []
+    params = []
+    
+    if status_filter:
+        conditions.append("status = ?")
+        params.append(status_filter)
+    if priority_filter:
+        conditions.append("priority = ?")
+        params.append(priority_filter)
+    
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    
+    query += " ORDER BY created_at DESC"
+    tasks = conn.execute(query, params).fetchall()
     conn.close()
     return jsonify([dict(t) for t in tasks])
 
@@ -51,8 +104,8 @@ def create_task():
         return jsonify({"error": "Title is required"}), 400
 
     conn = get_db()
-    # INTENTIONAL VULNERABILITY: SQL injection (for Sentinel to detect)
-    query = f"INSERT INTO tasks (title, description, status, priority) VALUES ('{data['title']}', '{data.get('description', '')}', '{data.get('status', 'pending')}', '{data.get('priority', 'medium')}')"
+    # INTENTIONAL VULNERABILITY: SQL injection via f-string
+    query = f"INSERT INTO tasks (title, description, status, priority, assignee) VALUES ('{data['title']}', '{data.get('description', '')}', '{data.get('status', 'pending')}', '{data.get('priority', 'medium')}', '{data.get('assignee', '')}')"
     conn.execute(query)
     conn.commit()
     conn.close()
@@ -79,20 +132,22 @@ def update_task(task_id):
     data = request.get_json()
     conn = get_db()
 
-    # INTENTIONAL VULNERABILITY: No input validation
+    # INTENTIONAL: No input validation for status/priority values
     task = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
     if not task:
         conn.close()
         return jsonify({"error": "Task not found"}), 404
 
-    # INTENTIONAL: Missing error handling for invalid status values
+    # INTENTIONAL: Missing error handling for invalid data types
     conn.execute(
-        "UPDATE tasks SET title=?, description=?, status=?, priority=? WHERE id=?",
+        "UPDATE tasks SET title=?, description=?, status=?, priority=?, assignee=?, updated_at=? WHERE id=?",
         (
             data.get("title", task["title"]),
             data.get("description", task["description"]),
             data.get("status", task["status"]),
             data.get("priority", task["priority"]),
+            data.get("assignee", task["assignee"]),
+            datetime.now().isoformat(),
             task_id,
         ),
     )
@@ -116,6 +171,64 @@ def delete_task(task_id):
     return jsonify({"message": "Task deleted"})
 
 
+@app.route("/tasks/search", methods=["GET"])
+def search_tasks():
+    """Search tasks by title or description."""
+    query = request.args.get("q", "")
+    
+    # INTENTIONAL VULNERABILITY: SQL injection in search
+    conn = get_db()
+    sql = f"SELECT * FROM tasks WHERE title LIKE '%{query}%' OR description LIKE '%{query}%'"
+    tasks = conn.execute(sql).fetchall()
+    conn.close()
+    
+    return jsonify([dict(t) for t in tasks])
+
+
+@app.route("/users", methods=["POST"])
+def create_user():
+    """Create a new user."""
+    data = request.get_json()
+    
+    # INTENTIONAL: Weak password hashing (MD5)
+    password = data.get("password", "")
+    password_hash = hashlib.md5(password.encode()).hexdigest()
+    
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
+            (data.get("username"), data.get("email"), password_hash)
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({"error": "Username already exists"}), 409
+    
+    conn.close()
+    return jsonify({"message": "User created"}), 201
+
+
+@app.route("/users/<username>", methods=["GET"])
+def get_user(username):
+    """Get user by username."""
+    conn = get_db()
+    user = conn.execute("SELECT id, username, email, created_at FROM users WHERE username = ?", (username,)).fetchone()
+    conn.close()
+    
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    return jsonify(dict(user))
+
+
+# INTENTIONAL: No rate limiting on any endpoint
+# INTENTIONAL: No authentication/authorization
+# INTENTIONAL: No CORS configuration
+# INTENTIONAL: No request size limits
+
+
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True, port=5000)
+    # INTENTIONAL: Debug mode enabled in production
+    app.run(debug=DEBUG_MODE, host="0.0.0.0", port=5000)

@@ -1,41 +1,81 @@
+# TaskFlow CI/CD Pipeline
+# This pipeline has intentional issues for DevFlow agents to detect and fix
+
 stages:
+  - lint
   - test
   - security
+  - build
   - deploy
 
 variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  PYTHON_VERSION: "3.11"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
 
 cache:
   paths:
-    - .cache/pip
+    - .pip-cache/
+    - venv/
 
+# ─── LINT ───
+lint:
+  stage: lint
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - pip install flake8 black isort
+  script:
+    - flake8 --max-line-length=120 --exclude=venv .
+    - black --check .
+    - isort --check-only .
+  allow_failure: true
+
+# ─── TESTS ───
 test:
   stage: test
-  image: python:3.11-slim
-  script:
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - python -m venv venv
+    - source venv/bin/activate
     - pip install -r requirements.txt
-    - pytest tests/ -v --tb=short
+    - pip install pytest pytest-cov
+  script:
+    - pytest tests/ -v --cov=. --cov-report=term-missing
+  coverage: '/TOTAL\s+\d+\s+\d+\s+(\d+%)/'
   artifacts:
     reports:
-      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
 
-security_scan:
+# ─── SECURITY ───
+sast:
   stage: security
-  image: python:3.11-slim
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+
+# ─── BUILD ───
+build:
+  stage: build
+  image: python:${PYTHON_VERSION}
   script:
-    - pip install bandit safety
-    - bandit -r . -f json -o bandit-report.json || true
-    - safety check --json > safety-report.json || true
+    - pip install -r requirements.txt
+    - python -c "from app import app; print('Build OK')"
   artifacts:
     paths:
-      - bandit-report.json
-      - safety-report.json
+      - "*.py"
+    expire_in: 1 hour
 
-deploy:
+# ─── DEPLOY ───
+deploy_staging:
   stage: deploy
+  image: python:${PYTHON_VERSION}
   script:
     - echo "Deploying to staging..."
-    - echo "Deployment complete"
+    # INTENTIONAL: No actual deployment configured
+    - echo "TODO: Add deployment script"
+  environment:
+    name: staging
   only:
     - main
+  when: manual

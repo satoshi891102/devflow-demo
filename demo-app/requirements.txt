@@ -1,3 +1,2 @@
 flask==3.1.0
-pytest==8.3.4
-# INTENTIONAL: Missing pytest-flask dependency (causes CI to fail)
+gunicorn==23.0.0
