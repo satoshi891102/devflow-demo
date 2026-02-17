@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Cal Sans", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  --color-bg: #09090b;
+  --color-bg-elevated: #18181b;
+  --color-bg-subtle: #27272a;
+  --color-bg-muted: #3f3f46;
+
+  --color-border: #27272a;
+  --color-border-subtle: #3f3f46;
+
+  --color-text: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+
+  --color-accent: #6366f1;
+  --color-accent-light: #818cf8;
+  --color-accent-dark: #4f46e5;
+
+  --color-sentinel: #f97316;
+  --color-triage: #06b6d4;
+  --color-reviewer: #a855f7;
+  --color-scribe: #22c55e;
+
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-error: #ef4444;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  line-height: 1.6;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+  color: white;
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow effects */
+.glow-accent {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), 0 0 60px rgba(99, 102, 241, 0.05);
+}
+
+.glow-sentinel { box-shadow: 0 0 20px rgba(249, 115, 22, 0.15); }
+.glow-triage { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15); }
+.glow-reviewer { box-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
+.glow-scribe { box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); }
+
+/* Animated gradient border */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animated-border {
+  background: linear-gradient(270deg, #6366f1, #a855f7, #06b6d4, #6366f1);
+  background-size: 300% 300%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+/* Terminal animation */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: "▋";
+  animation: blink 1s step-end infinite;
+  color: var(--color-accent);
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.float { animation: float 6s ease-in-out infinite; }
+.float-delayed { animation: float 6s ease-in-out 2s infinite; }
+
+/* Grid background */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Code block styling */
+.code-block {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.code-keyword { color: #c084fc; }
+.code-string { color: #6ee7b7; }
+.code-comment { color: #71717a; }
+.code-function { color: #60a5fa; }
+.code-type { color: #fbbf24; }
