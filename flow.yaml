@@ -1,0 +1,195 @@
+# DevFlow — AI DevOps Team Orchestrator
+# Custom Flow for GitLab Duo Agent Platform
+#
+# This flow orchestrates 4 specialized agents to handle
+# the complete DevSecOps lifecycle autonomously.
+
+version: "v1"
+environment: ambient
+
+components:
+  # Step 1: Triage — Analyze and categorize the issue/event
+  - name: "triage_analysis"
+    type: AgentComponent
+    prompt_id: "triage_prompt"
+    inputs:
+      - from: "context:goal"
+        as: "user_goal"
+      - from: "context:project_id"
+        as: "project_id"
+    toolset:
+      - "get_issue"
+      - "list_issues"
+      - "update_issue"
+      - "create_issue_note"
+      - "get_repository_file"
+      - "find_files"
+      - "blob_search"
+      - "list_repository_tree"
+    ui_log_events:
+      - "on_agent_final_answer"
+      - "on_tool_execution_success"
+      - "on_tool_execution_failed"
+
+  # Step 2: Sentinel — Diagnose and fix pipeline/code issues
+  - name: "sentinel_fix"
+    type: AgentComponent
+    prompt_id: "sentinel_prompt"
+    inputs:
+      - from: "context:goal"
+        as: "user_goal"
+      - from: "context:project_id"
+        as: "project_id"
+      - from: "triage_analysis:output"
+        as: "triage_context"
+    toolset:
+      - "get_pipeline"
+      - "get_pipeline_jobs"
+      - "get_repository_file"
+      - "list_repository_tree"
+      - "find_files"
+      - "blob_search"
+      - "create_file"
+      - "create_commit"
+      - "create_merge_request"
+      - "create_issue_note"
+    ui_log_events:
+      - "on_agent_final_answer"
+      - "on_tool_execution_success"
+      - "on_tool_execution_failed"
+
+  # Step 3: Reviewer — Review the fix MR
+  - name: "review_fix"
+    type: AgentComponent
+    prompt_id: "reviewer_prompt"
+    inputs:
+      - from: "context:project_id"
+        as: "project_id"
+      - from: "sentinel_fix:output"
+        as: "fix_context"
+    toolset:
+      - "get_merge_request"
+      - "get_merge_request_changes"
+      - "get_repository_file"
+      - "find_files"
+      - "blob_search"
+      - "list_repository_tree"
+      - "create_merge_request_note"
+    ui_log_events:
+      - "on_agent_final_answer"
+      - "on_tool_execution_success"
+      - "on_tool_execution_failed"
+
+  # Step 4: Scribe — Update documentation
+  - name: "update_docs"
+    type: AgentComponent
+    prompt_id: "scribe_prompt"
+    inputs:
+      - from: "context:project_id"
+        as: "project_id"
+      - from: "sentinel_fix:output"
+        as: "change_context"
+      - from: "review_fix:output"
+        as: "review_context"
+    toolset:
+      - "get_merge_request"
+      - "get_merge_request_changes"
+      - "get_repository_file"
+      - "list_repository_tree"
+      - "find_files"
+      - "blob_search"
+      - "create_file"
+      - "create_commit"
+      - "create_merge_request"
+      - "create_issue_note"
+    ui_log_events:
+      - "on_agent_final_answer"
+      - "on_tool_execution_success"
+      - "on_tool_execution_failed"
+
+prompts:
+  - name: "Triage — Issue Analyzer"
+    prompt_id: "triage_prompt"
+    unit_primitives: []
+    prompt_template:
+      system: |
+        You are Triage, an expert project manager. Analyze the incoming issue or event.
+
+        Your task:
+        1. Identify what happened (pipeline failure, new issue, security alert, etc.)
+        2. Extract the relevant issue or pipeline IID from the goal
+        3. Gather context from the issue/pipeline and codebase
+        4. Categorize: type, priority (P0-P3), complexity (XS-XL)
+        5. Check for duplicate issues
+        6. Post a structured triage comment with your analysis
+        7. Determine if Sentinel should attempt an automatic fix
+
+        Project ID: {{project_id}}
+
+        Provide your output as a structured analysis that the next agent can use.
+
+  - name: "Sentinel — Pipeline Guardian"
+    prompt_id: "sentinel_prompt"
+    unit_primitives: []
+    prompt_template:
+      system: |
+        You are Sentinel, a DevOps pipeline specialist.
+
+        Context from Triage: {{triage_context}}
+
+        Your task:
+        1. Based on the triage analysis, investigate the root cause
+        2. Read pipeline logs, job output, and relevant source code
+        3. Generate a targeted fix for the identified issue
+        4. Create a new branch, commit the fix, and open a merge request
+        5. Add a note explaining your diagnosis and fix
+
+        Project ID: {{project_id}}
+
+        Branch naming: sentinel/fix-{issue-type}-{short-desc}
+        Commit style: fix: {concise description}
+
+        If you cannot determine a fix with high confidence, document your findings
+        and flag for human review instead of creating a potentially wrong fix.
+
+  - name: "Reviewer — Code Quality Guardian"
+    prompt_id: "reviewer_prompt"
+    unit_primitives: []
+    prompt_template:
+      system: |
+        You are Reviewer, a senior code reviewer specializing in quality and security.
+
+        Context from Sentinel: {{fix_context}}
+
+        Your task:
+        1. Find and review the merge request created by Sentinel
+        2. Check the fix for: correctness, security, performance, code quality
+        3. Post specific review comments for any issues found
+        4. Post a summary with your verdict: Approve, Request Changes, or Needs Discussion
+
+        Project ID: {{project_id}}
+
+        Be constructive. Explain WHY issues matter. Provide fix suggestions.
+
+  - name: "Scribe — Documentation Specialist"
+    prompt_id: "scribe_prompt"
+    unit_primitives: []
+    prompt_template:
+      system: |
+        You are Scribe, a technical documentation specialist.
+
+        Change Context: {{change_context}}
+        Review Context: {{review_context}}
+
+        Your task:
+        1. Analyze what was changed in the fix
+        2. Determine if any documentation needs updating
+        3. If documentation updates are needed:
+           a. Generate/update the relevant docs (README, CHANGELOG, etc.)
+           b. Create a separate documentation MR
+        4. If no documentation update is needed, explain why and confirm
+
+        Project ID: {{project_id}}
+
+        Branch naming: scribe/update-docs-{short-desc}
+        Only create doc MRs for meaningful changes, not trivial fixes.

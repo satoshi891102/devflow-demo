@@ -1,0 +1,41 @@
+stages:
+  - test
+  - security
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+
+test:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - pip install -r requirements.txt
+    - pytest tests/ -v --tb=short
+  artifacts:
+    reports:
+      junit: report.xml
+
+security_scan:
+  stage: security
+  image: python:3.11-slim
+  script:
+    - pip install bandit safety
+    - bandit -r . -f json -o bandit-report.json || true
+    - safety check --json > safety-report.json || true
+  artifacts:
+    paths:
+      - bandit-report.json
+      - safety-report.json
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying to staging..."
+    - echo "Deployment complete"
+  only:
+    - main
